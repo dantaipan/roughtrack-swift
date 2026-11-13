@@ -94,6 +94,8 @@ struct Fader: View {
                     .frame(width: 4, height: travel)
                     .position(x: slotX, y: capHeight / 2 + travel / 2)
 
+                let labelled = labelledMarks(markY)
+
                 ForEach(marks) { mark in
                     let y = markY(mark.gain)
 
@@ -102,12 +104,14 @@ struct Fader: View {
                         .frame(width: mark.isMajor ? 14 : 10, height: 1)
                         .position(x: slotX, y: y)
 
-                    Text(mark.label)
-                        .font(.system(size: 8, weight: mark.isMajor ? .semibold : .regular).monospacedDigit())
-                        .foregroundStyle(Color(Theme.secondaryText).opacity(mark.isMajor ? 1 : 0.8))
-                        .fixedSize()
-                        .frame(width: Self.scaleWidth, alignment: .trailing)
-                        .position(x: Self.scaleWidth / 2, y: y)
+                    if labelled.contains(mark.id) {
+                        Text(mark.label)
+                            .font(.system(size: 8, weight: mark.isMajor ? .semibold : .regular).monospacedDigit())
+                            .foregroundStyle(Color(Theme.secondaryText).opacity(mark.isMajor ? 1 : 0.8))
+                            .fixedSize()
+                            .frame(width: Self.scaleWidth, alignment: .trailing)
+                            .position(x: Self.scaleWidth / 2, y: y)
+                    }
                 }
 
                 RoundedRectangle(cornerRadius: 3)
@@ -149,6 +153,24 @@ struct Fader: View {
     private func reset() {
         dragPosition = nil
         onChange(resetGain)
+    }
+
+    /// The marks that get a label: the major ones, then each other one that has room
+    /// beside those already labelled, top down. On a short fader the rest keep only
+    /// their tick, so labels never run into each other.
+    private func labelledMarks(_ y: (Float) -> Double) -> Set<String> {
+        let minimumGap = 10.0
+        var taken: [Double] = []
+        var labelled: Set<String> = []
+
+        for mark in marks.filter(\.isMajor) + marks.filter({ !$0.isMajor }) {
+            let position = y(mark.gain)
+            if taken.allSatisfy({ abs($0 - position) >= minimumGap }) {
+                taken.append(position)
+                labelled.insert(mark.id)
+            }
+        }
+        return labelled
     }
 }
 

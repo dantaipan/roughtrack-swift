@@ -420,6 +420,13 @@ final class StudioModel: ObservableObject {
         if redo != redoName { redoName = redo }
     }
 
+    /// Clears the status bar now, as snapshots do so a passing message isn't in the picture.
+    func clearStatus() {
+        statusText = ""
+        statusIsWarning = false
+        statusClearTime = .distantFuture
+    }
+
     /// Shows a line in the status bar for a few seconds.
     func show(_ text: String, warning: Bool = false) {
         statusText = text

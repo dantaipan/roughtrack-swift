@@ -10,4 +10,9 @@ if arguments.count >= 2, rt.isPluginScanChild(arguments[1]) {
     exit(arguments.count == 5 ? rt.runPluginScanChild(arguments[2], arguments[3], arguments[4]) : 1)
 }
 
+// A snapshot starts from the default window, whatever windows were open last time.
+if SnapshotRequest.current != nil {
+    UserDefaults.standard.register(defaults: ["ApplePersistenceIgnoreState": true])
+}
+
 RoughTrackApp.main()

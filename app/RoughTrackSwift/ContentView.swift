@@ -5,6 +5,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var model: StudioModel
     @State private var geometry = TimelineGeometry()
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -140,6 +141,11 @@ struct ContentView: View {
             Button("Cancel", role: .cancel) { model.trackPendingDelete = nil }
         } message: {
             Text("Its clips and plugins go, and undo history is cleared. Its recordings stay in the session folder, so Add Take at Playhead can bring them back.")
+        }
+        .task {
+            if let request = SnapshotRequest.current {
+                await Snapshot.run(request, model: model, openWindow: openWindow)
+            }
         }
         .onChange(of: model.layoutRevision) {
             geometry.sampleRate = model.sampleRate
