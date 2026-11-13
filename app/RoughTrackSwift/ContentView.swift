@@ -47,6 +47,7 @@ struct ContentView: View {
 
             HSplitView {
             VSplitView {
+                VStack(spacing: 0) {
                 // The lanes fill the window, with a lane's worth to spare, so files can be
                 // dropped below the last track to make a new one.
                 GeometryReader { viewport in
@@ -68,6 +69,16 @@ struct ContentView: View {
                         .frame(height: max(CGFloat(model.tracks.count + 1) * Theme.laneHeight, viewport.size.height))
                     }
                 }
+
+                Rectangle().fill(Color(Theme.separator)).frame(height: 1)
+
+                HStack(spacing: 0) {
+                    Color(Theme.ruler).frame(width: Theme.headerWidth)
+                    Rectangle().fill(Color(Theme.separator)).frame(width: 1)
+                    TimelineScroller(geometry: geometry)
+                }
+                .frame(height: TimelineScrollerNSView.height)
+                }
                 .background(Color(Theme.window))
                 .frame(minHeight: 120)
 
@@ -86,6 +97,7 @@ struct ContentView: View {
             StatusBar()
         }
         .background(Color(Theme.window))
+        .background(IconOnlyToolbar())
         .navigationTitle(model.sessionName.isEmpty ? "RoughTrack" : model.sessionName)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -201,6 +213,27 @@ private struct NewSessionSheet: View {
             error = problem
         } else {
             dismiss()
+        }
+    }
+}
+
+/// Keeps the main window's toolbar to icons only. The transport is one toolbar item
+/// with no label, so "Icon and Text" in the toolbar's menu only added an empty strip.
+private struct IconOnlyToolbar: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { WindowWatcher() }
+    func updateNSView(_ view: NSView, context: Context) {}
+
+    private final class WindowWatcher: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            // SwiftUI adds the toolbar after the content, so wait a turn for it.
+            DispatchQueue.main.async { [weak self] in
+                guard let toolbar = self?.window?.toolbar else { return }
+                toolbar.displayMode = .iconOnly
+                if #available(macOS 15.0, *) {
+                    toolbar.allowsDisplayModeCustomization = false
+                }
+            }
         }
     }
 }

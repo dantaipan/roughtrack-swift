@@ -45,7 +45,11 @@ final class TimelineGeometry {
     var secondsPerBar: Double { 4 * 60 / tempo }
 
     func scroll(by delta: CGFloat) {
-        let newScroll = max(0, scrollX + delta)
+        scroll(to: scrollX + delta)
+    }
+
+    func scroll(to x: CGFloat) {
+        let newScroll = max(0, x)
         guard newScroll != scrollX else { return }
         scrollX = newScroll
         notify(zoomChanged: false)

@@ -28,6 +28,9 @@ final class RulerNSView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = Theme.ruler.cgColor
+        // Since macOS 14 views don't clip by default, and bar numbers scrolled past the
+        // left edge would draw over the track list's header.
+        clipsToBounds = true
 
         let path = CGMutablePath()
         path.move(to: CGPoint(x: -6, y: 0))

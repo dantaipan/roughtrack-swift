@@ -14,6 +14,7 @@ enum Theme {
     static let separator = NSColor(white: 0.08, alpha: 1)
     static let ruler = NSColor(white: 0.22, alpha: 1)
     static let display = NSColor(white: 0.08, alpha: 1)
+    static let scrollerKnob = NSColor(white: 0.40, alpha: 1)
 
     // Text
     static let text = NSColor(white: 0.90, alpha: 1)
