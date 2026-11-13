@@ -1,0 +1,5 @@
+module RoughTrackCore {
+    header "RoughTrackCore.h"
+    requires cplusplus
+    export *
+}

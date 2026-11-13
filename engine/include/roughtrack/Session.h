@@ -1,0 +1,52 @@
+#pragma once
+
+#include "roughtrack/AudioEngine.h"
+
+#include <juce_data_structures/juce_data_structures.h>
+
+namespace roughtrack
+{
+
+/** Takes, positions and mixer settings. Plugins are saved separately because
+    their state can be slow to read and is only worth writing when it changes.
+*/
+std::unique_ptr<juce::XmlElement> createSessionXml (const AudioEngine&, const juce::File& sessionDirectory);
+
+/** Fills an empty engine from a saved session. A take that's gone stays on its track, silent,
+    so the session isn't damaged if the file comes back. The result says what's wrong.
+*/
+juce::Result applySessionXml (AudioEngine&, const juce::XmlElement&, const juce::File& sessionDirectory);
+
+/** One undoable change to a track's clips. */
+class ClipEdit final : public juce::UndoableAction
+{
+public:
+    ClipEdit (AudioEngine&, int track, ClipList before, ClipList after);
+
+    bool perform() override;
+    bool undo() override;
+    int getSizeInUnits() override { return 1; }
+
+private:
+    AudioEngine& engine;
+    const int track;
+    const ClipList before, after;
+};
+
+/** One undoable change to a drum track's parts. */
+class DrumEdit final : public juce::UndoableAction
+{
+public:
+    DrumEdit (AudioEngine&, int track, DrumPartList before, DrumPartList after);
+
+    bool perform() override;
+    bool undo() override;
+    int getSizeInUnits() override { return 1; }
+
+private:
+    AudioEngine& engine;
+    const int track;
+    const DrumPartList before, after;
+};
+
+} // namespace roughtrack
