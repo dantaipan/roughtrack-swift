@@ -1,17 +1,18 @@
 import AppKit
 import SwiftUI
 
-/// Fader travel to gain: a cube law up to +6 dB, so most of the travel is where
-/// mixing happens, with 0 dB about four fifths of the way up.
+/// Fader travel to gain: a cube law, so most of the travel is where mixing happens. With
+/// the usual top of +6 dB, 0 dB is about four fifths of the way up.
 enum FaderLaw {
     static let maximumGain: Float = 2
 
-    static func gain(at position: Double) -> Float {
-        maximumGain * Float(pow(min(max(position, 0), 1), 3))
+    static func gain(at position: Double, maximum: Float = maximumGain) -> Float {
+        maximum * Float(pow(min(max(position, 0), 1), 3))
     }
 
-    static func position(for gain: Float) -> Double {
-        pow(Double(max(gain, 0) / maximumGain), 1.0 / 3.0)
+    static func position(for gain: Float, maximum: Float = maximumGain) -> Double {
+        guard maximum > 0 else { return 0 }
+        return pow(Double(max(gain, 0) / maximum), 1.0 / 3.0)
     }
 
     static func decibels(_ gain: Float) -> String {
@@ -21,75 +22,138 @@ enum FaderLaw {
     }
 }
 
-/// A flat vertical fader. It holds its own value while being dragged, so it doesn't wait
-/// for the model to catch up, and double-click or Option-click puts it back to 0 dB.
+/// Whether the press starting a drag is a double-click or an Option-click, either of
+/// which puts a fader or knob back to its default. It's read from the drag itself, since
+/// a drag that starts on the press leaves a double-tap gesture nothing to see.
+@MainActor
+func isResetClick() -> Bool {
+    if NSEvent.modifierFlags.contains(.option) { return true }
+    guard let event = NSApp.currentEvent, event.type == .leftMouseDown else { return false }
+    return event.clickCount >= 2
+}
+
+/// A labelled line on a fader's scale.
+struct FaderMark: Identifiable {
+    let gain: Float
+    let label: String
+    var isMajor = false
+
+    var id: String { label }
+
+    /// For a fader up to +6 dB.
+    static let decibels: [FaderMark] = [
+        FaderMark(gain: 2, label: "+6"),
+        FaderMark(gain: 1, label: "0", isMajor: true),
+        FaderMark(gain: 0.5012, label: "-6"),
+        FaderMark(gain: 0.2512, label: "-12"),
+        FaderMark(gain: 0.0631, label: "-24"),
+        FaderMark(gain: 0.00398, label: "-48"),
+        FaderMark(gain: 0, label: "-∞"),
+    ]
+
+    /// For a level shown as a percentage of `maximum`.
+    static func percent(of maximum: Float) -> [FaderMark] {
+        [FaderMark(gain: maximum, label: "100", isMajor: true)] + [50, 25, 10, 0].map {
+            FaderMark(gain: maximum * Float($0) / 100, label: "\($0)")
+        }
+    }
+}
+
+/// A flat vertical fader with its scale down the left. It holds its own value while being
+/// dragged, so it doesn't wait for the model to catch up, and double-click or
+/// Option-click puts it back to `resetGain`.
 struct Fader: View {
     let gain: Float
+    var maximum: Float = FaderLaw.maximumGain
+    var marks: [FaderMark] = FaderMark.decibels
+    var resetGain: Float = 1
     let onChange: (Float) -> Void
+
+    /// Room for the scale's labels, and the width a fader with them needs.
+    static let scaleWidth: CGFloat = 18
+    static let width: CGFloat = 54
 
     @State private var dragPosition: Double?
     @State private var startPosition: Double = 0
+    @State private var isResetting = false
 
     private let capHeight: CGFloat = 26
 
     var body: some View {
         GeometryReader { geometry in
             let travel = max(geometry.size.height - capHeight, 1)
-            let position = dragPosition ?? FaderLaw.position(for: gain)
-            let capY = (1 - position) * travel
+            let position = dragPosition ?? FaderLaw.position(for: gain, maximum: maximum)
+            let slotX = Self.scaleWidth + (geometry.size.width - Self.scaleWidth) / 2
+            let markY = { (gain: Float) in
+                (1 - FaderLaw.position(for: gain, maximum: maximum)) * travel + capHeight / 2
+            }
 
-            ZStack(alignment: .top) {
-                // The slot, and a mark at 0 dB
+            ZStack(alignment: .topLeading) {
                 Capsule()
                     .fill(Color(white: 0.08))
-                    .frame(width: 4)
-                    .frame(maxHeight: .infinity)
-                    .padding(.vertical, capHeight / 2)
+                    .frame(width: 4, height: travel)
+                    .position(x: slotX, y: capHeight / 2 + travel / 2)
 
-                Rectangle()
-                    .fill(Color(Theme.secondaryText).opacity(0.6))
-                    .frame(width: 14, height: 1)
-                    .offset(y: (1 - FaderLaw.position(for: 1)) * travel + capHeight / 2)
+                ForEach(marks) { mark in
+                    let y = markY(mark.gain)
+
+                    Rectangle()
+                        .fill(Color(Theme.secondaryText).opacity(mark.isMajor ? 0.7 : 0.4))
+                        .frame(width: mark.isMajor ? 14 : 10, height: 1)
+                        .position(x: slotX, y: y)
+
+                    Text(mark.label)
+                        .font(.system(size: 8, weight: mark.isMajor ? .semibold : .regular).monospacedDigit())
+                        .foregroundStyle(Color(Theme.secondaryText).opacity(mark.isMajor ? 1 : 0.8))
+                        .fixedSize()
+                        .frame(width: Self.scaleWidth, alignment: .trailing)
+                        .position(x: Self.scaleWidth / 2, y: y)
+                }
 
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color(white: 0.78))
                     .overlay(Rectangle().fill(Color(white: 0.25)).frame(height: 1))
                     .frame(width: 26, height: capHeight)
                     .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
-                    .offset(y: capY)
+                    .position(x: slotX, y: (1 - position) * travel + capHeight / 2)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        if isResetting { return }
                         if dragPosition == nil {
-                            if NSEvent.modifierFlags.contains(.option) {
+                            if isResetClick() {
+                                isResetting = true
                                 reset()
                                 return
                             }
-                            startPosition = FaderLaw.position(for: gain)
+                            startPosition = FaderLaw.position(for: gain, maximum: maximum)
                         }
 
                         // Hold Shift for fine moves.
                         let scale = NSEvent.modifierFlags.contains(.shift) ? 0.2 : 1.0
                         let moved = min(max(startPosition - Double(value.translation.height / travel) * scale, 0), 1)
                         dragPosition = moved
-                        onChange(FaderLaw.gain(at: moved))
+                        onChange(FaderLaw.gain(at: moved, maximum: maximum))
                     }
-                    .onEnded { _ in dragPosition = nil }
+                    .onEnded { _ in
+                        dragPosition = nil
+                        isResetting = false
+                    }
             )
-            .onTapGesture(count: 2, perform: reset)
         }
     }
 
     private func reset() {
         dragPosition = nil
-        onChange(1)
+        onChange(resetGain)
     }
 }
 
-/// A small flat knob. Drag up or down to turn it; double-click puts it back to its default.
+/// A small flat knob. Drag up or down to turn it; double-click or Option-click puts it
+/// back to its default. A bipolar knob, like pan, sticks briefly at its centre.
 struct Knob: View {
     let value: Float
     let minimum: Float
@@ -102,6 +166,7 @@ struct Knob: View {
 
     @State private var dragValue: Float?
     @State private var startValue: Float = 0
+    @State private var isResetting = false
 
     private var fraction: Double {
         guard maximum > minimum else { return 0 }
@@ -139,19 +204,30 @@ struct Knob: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { drag in
-                    if dragValue == nil { startValue = value }
+                    if isResetting { return }
+                    if dragValue == nil {
+                        if isResetClick() {
+                            isResetting = true
+                            onChange(defaultValue)
+                            return
+                        }
+                        startValue = value
+                    }
                     let scale: Float = NSEvent.modifierFlags.contains(.shift) ? 600 : 150
                     let moved = startValue - Float(drag.translation.height) / scale * (maximum - minimum)
-                    let clamped = min(max(moved, minimum), maximum)
+                    var clamped = min(max(moved, minimum), maximum)
+                    // A few points of travel either side of the centre land on it exactly.
+                    if bipolar, abs(clamped - defaultValue) < (maximum - minimum) * 0.04 {
+                        clamped = defaultValue
+                    }
                     dragValue = clamped
                     onChange(clamped)
                 }
-                .onEnded { _ in dragValue = nil }
+                .onEnded { _ in
+                    dragValue = nil
+                    isResetting = false
+                }
         )
-        .onTapGesture(count: 2) {
-            dragValue = nil
-            onChange(defaultValue)
-        }
     }
 }
 

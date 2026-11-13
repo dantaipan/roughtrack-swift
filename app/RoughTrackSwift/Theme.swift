@@ -28,6 +28,9 @@ enum Theme {
     static let record = NSColor(red: 0.92, green: 0.26, blue: 0.24, alpha: 1)
     static let monitor = NSColor(red: 0.95, green: 0.55, blue: 0.20, alpha: 1)
     static let cycle = NSColor(red: 0.85, green: 0.72, blue: 0.30, alpha: 1)
+    /// The reverb and delay: their returns and every track's sends to them. Violet, so
+    /// they don't read as a track kind or the loop.
+    static let effectReturn = NSColor(red: 0.62, green: 0.52, blue: 0.90, alpha: 1)
     static let selection = NSColor(white: 1.0, alpha: 0.9)
     static let play = NSColor(red: 0.35, green: 0.80, blue: 0.40, alpha: 1)
     static let meterLow = NSColor(red: 0.30, green: 0.80, blue: 0.40, alpha: 1)

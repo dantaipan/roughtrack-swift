@@ -98,14 +98,19 @@ private struct ChannelStripView: View {
                 sendKnob(index: StudioModel.sendDelayIndex, value: track.sendDelay, label: "Dly")
             }
 
-            Knob(value: track.pan, minimum: -1, maximum: 1, defaultValue: 0, size: 28, bipolar: true, tint: Theme.mute) {
-                model.setPan(track.id, $0)
+            VStack(spacing: 1) {
+                Knob(value: track.pan, minimum: -1, maximum: 1, defaultValue: 0, size: 28, bipolar: true, tint: Theme.mute) {
+                    model.setPan(track.id, $0)
+                }
+                Text("Pan \(panLabel(track.pan))")
+                    .font(.system(size: 9).monospacedDigit())
+                    .foregroundStyle(Color(Theme.secondaryText))
             }
-            .help("Pan")
+            .help("Pan: where the track sits between left and right. Double-click or Option-click to centre it.")
 
             HStack(alignment: .top, spacing: 4) {
                 Fader(gain: track.gain) { model.setGain(track.id, $0) }
-                    .frame(width: 34)
+                    .frame(width: Fader.width)
                 LevelMeter(track: track.id)
                     .frame(width: 6)
             }
@@ -171,13 +176,19 @@ private struct ChannelStripView: View {
         .help("Input")
     }
 
+    /// C at the centre, otherwise L or R and how far, up to 100.
+    private func panLabel(_ pan: Float) -> String {
+        let amount = Int((abs(pan) * 100).rounded())
+        return amount == 0 ? "C" : "\(pan < 0 ? "L" : "R")\(amount)"
+    }
+
     private func sendKnob(index: Int32, value: Float, label: String) -> some View {
         let parameter = model.channelParameters.first { $0.index == Int(index) }
 
         return VStack(spacing: 1) {
             Knob(value: value, minimum: parameter?.minimum ?? 0,
                  maximum: parameter?.maximum ?? 1, defaultValue: parameter?.defaultValue ?? 0,
-                 size: 22, tint: Theme.cycle) {
+                 size: 22, tint: Theme.effectReturn) {
                 model.setChannelParameter(track.id, Int(index), $0)
             }
             Text(label)
@@ -333,11 +344,12 @@ private struct ReturnStrip: View {
                     EffectSettings(title: name, indexes: editIndexes, model: model)
                 }
 
-            // The return level runs over the parameter's own range, drawn with the fader law.
-            Fader(gain: level / maximum * FaderLaw.maximumGain / 2) {
-                model.setAuxParameter(returnIndex, min($0 * 2 / FaderLaw.maximumGain * maximum, maximum))
+            // The return level runs over the parameter's own range, so 100% is the top.
+            Fader(gain: level, maximum: maximum, marks: FaderMark.percent(of: maximum),
+                  resetGain: parameter?.defaultValue ?? maximum) {
+                model.setAuxParameter(returnIndex, min($0, maximum))
             }
-            .frame(width: 34)
+            .frame(width: Fader.width)
             .frame(maxHeight: .infinity)
 
             Text(String(format: "%.0f%%", level / maximum * 100))
@@ -349,7 +361,7 @@ private struct ReturnStrip: View {
                 .foregroundStyle(Color.black.opacity(0.85))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 3)
-                .background(Color(Theme.cycle))
+                .background(Color(Theme.effectReturn))
         }
         .padding(.horizontal, 5)
         .modifier(StripBackground())
@@ -368,7 +380,7 @@ private struct MasterStrip: View {
 
             HStack(alignment: .top, spacing: 4) {
                 Fader(gain: gain) { model.setMasterGain($0) }
-                    .frame(width: 34)
+                    .frame(width: Fader.width)
                 LevelMeter(track: -1)
                     .frame(width: 8)
             }
