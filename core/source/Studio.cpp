@@ -555,6 +555,7 @@ juce::Result Studio::startMixdown (const juce::File& destination, bool stems)
     if (const auto folder = stems ? destination : destination.getParentDirectory(); ! folder.createDirectory())
         return juce::Result::fail ("Couldn't make the folder " + folder.getFullPathName() + ".");
 
+    mixdownReturnPosition = engine.getPosition();
     mixdownWork = {};
     mixdownWork.file = destination;
     mixdownWork.stems = stems;
@@ -639,6 +640,16 @@ std::optional<Studio::UpdateOutcome> Studio::takeUpdateOutcome()
 void Studio::skipUpdate (const juce::String& version)
 {
     settings->setValue ("skippedVersion", version);
+}
+
+bool Studio::checksForUpdatesAutomatically() const
+{
+    return settings->getBoolValue ("checkForUpdates", true);
+}
+
+void Studio::setChecksForUpdatesAutomatically (bool shouldCheck)
+{
+    settings->setValue ("checkForUpdates", shouldCheck);
 }
 
 void Studio::useInterfaceInputs()
@@ -2042,6 +2053,21 @@ void Studio::tick()
 
         if (audioStarted)
             restoreChosenAudioDevice();
+    }
+
+    // Once a day at most, a while after starting, and only with a device open (not in tests).
+    if (audioStarted && ! automaticUpdateCheckDone)
+    {
+        automaticUpdateCheckDone = true;
+        constexpr juce::int64 dayMs = 24 * 60 * 60 * 1000;
+        const auto lastCheck = settings->getValue ("lastUpdateCheck").getLargeIntValue();
+
+        if (checksForUpdatesAutomatically() && updates::isUpdateCheckingAvailable()
+            && juce::Time::currentTimeMillis() - lastCheck >= dayMs)
+        {
+            settings->setValue ("lastUpdateCheck", juce::String (juce::Time::currentTimeMillis()));
+            checkForUpdates (false);
+        }
     }
 
     handleControlEvents();

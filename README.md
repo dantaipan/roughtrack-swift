@@ -43,8 +43,9 @@ stapled. It needs the `roughtrack-notary` notarytool profile. The version is
 `MARKETING_VERSION` in `app/project.yml` (and the CMake project version, which the
 About box and update checker use).
 
-The update checker is built but off: `updates::latestReleaseUrl` in
-`core/include/roughtrack/Updates.h` is empty until releases have a GitHub home.
+Releases are published on github.com/dantaipan/roughtrack-swift, where the update
+checker (`updates::latestReleaseUrl` in `core/include/roughtrack/Updates.h`) looks for
+them. Attach the DMG to each release so the checker can offer a direct download.
 
 ## Licence
 

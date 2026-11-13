@@ -764,6 +764,11 @@ final class StudioModel: ObservableObject {
     func checkForUpdates() { app?.checkForUpdates(true) }
     func skipUpdate(_ version: String) { app?.skipUpdate(std.string(version)) }
 
+    var checksForUpdatesAutomatically: Bool {
+        get { app?.checksForUpdatesAutomatically() ?? false }
+        set { objectWillChange.send(); app?.setChecksForUpdatesAutomatically(newValue) }
+    }
+
     // MARK: - Undo and sessions
 
     func undo() { app?.undo(); pollNow() }

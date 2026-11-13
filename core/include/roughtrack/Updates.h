@@ -11,10 +11,10 @@
 namespace updates
 {
 
-/** Where to ask for the latest release. Empty until RoughTrack's SwiftUI releases have a
-    home, so no request is made: the checker stays off.
+/** Where to ask for the latest release. Left empty, no request is ever made and the
+    checker stays off.
 */
-inline constexpr auto latestReleaseUrl = "";
+inline constexpr auto latestReleaseUrl = "https://api.github.com/repos/dantaipan/roughtrack-swift/releases/latest";
 
 inline bool isUpdateCheckingAvailable() { return juce::String (latestReleaseUrl).isNotEmpty(); }
 

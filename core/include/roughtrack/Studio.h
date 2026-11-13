@@ -301,6 +301,11 @@ public:
     /** The finished mixdown, once. */
     std::optional<MixdownOutcome> takeMixdownOutcome();
 
+    /** Where the playhead shows. A mixdown runs the engine's position through the song, so
+        while one runs this stays where the playhead was, and the timeline doesn't chase it.
+    */
+    juce::int64 getDisplayPosition() const noexcept { return isMixingDown() ? mixdownReturnPosition : engine.getPosition(); }
+
     juce::File getMixdownFolder() const;
     juce::File getNextStemsFolder() const;
 
@@ -318,6 +323,10 @@ public:
 
     std::optional<UpdateOutcome> takeUpdateOutcome();
     void skipUpdate (const juce::String& version);
+
+    /** Whether to check once a day by itself, as the JUCE RoughTrack does (the same setting). */
+    bool checksForUpdatesAutomatically() const;
+    void setChecksForUpdatesAutomatically (bool);
 
     bool canUndo() const { return undoManager.canUndo(); }
     bool canRedo() const { return undoManager.canRedo(); }
@@ -443,9 +452,11 @@ private:
     std::thread mixdownThread;
     std::atomic<bool> mixdownRunning { false }, mixdownCancelled { false };
     std::atomic<double> mixdownProgress { 0.0 };
+    juce::int64 mixdownReturnPosition = 0;
     MixdownOutcome mixdownWork;
     std::optional<MixdownOutcome> mixdownOutcome;
 
+    bool automaticUpdateCheckDone = false;
     std::thread updateThread;
     std::atomic<bool> updateRunning { false };
     UpdateOutcome updateWork;

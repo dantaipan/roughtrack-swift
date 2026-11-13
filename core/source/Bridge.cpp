@@ -488,6 +488,8 @@ std::string App::version() const                { return ROUGHTRACK_VERSION; }
 bool App::updateCheckingAvailable() const       { return updates::isUpdateCheckingAvailable(); }
 void App::checkForUpdates (bool manual)         { get().checkForUpdates (manual); }
 void App::skipUpdate (const std::string& value) { get().skipUpdate (juce::String::fromUTF8 (value.c_str())); }
+bool App::checksForUpdatesAutomatically() const { return get().checksForUpdatesAutomatically(); }
+void App::setChecksForUpdatesAutomatically (bool value) { get().setChecksForUpdatesAutomatically (value); }
 
 UpdateInfo App::takeUpdateOutcome()
 {
@@ -746,7 +748,7 @@ Transport App::transport() const
     return Transport::stopped;
 }
 
-std::int64_t App::position() const      { return get().getEngine().getPosition(); }
+std::int64_t App::position() const      { return get().getDisplayPosition(); }
 double App::sampleRate() const          { return timelineRate(); }
 double App::tempo() const               { return get().getEngine().getTempo(); }
 std::int64_t App::sessionLength() const { return get().getEngine().getSessionLength(); }

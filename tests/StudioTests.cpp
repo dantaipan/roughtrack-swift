@@ -709,8 +709,13 @@ TEST_CASE ("A mixdown and stems are written in the background, and refused while
     REQUIRE (engine.loadTake (track, writeTake (studio.getCurrentSession(), 48000), 0));
 
     const auto file = studio.getMixdownFolder().getChildFile ("Mix.wav");
+    studio.seek (12000);
     REQUIRE (studio.startMixdown (file, false).wasOk());
     CHECK (studio.isMixingDown());
+
+    // The playhead shows where it was, however far the mixdown has got.
+    juce::Thread::sleep (20);
+    CHECK (studio.getDisplayPosition() == 12000);
     CHECK (studio.startMixdown (file, false).failed());
 
     const auto outcome = waitForMixdown (studio);

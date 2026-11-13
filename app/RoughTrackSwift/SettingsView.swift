@@ -58,6 +58,14 @@ struct SettingsView: View {
                 }
             }
 
+            if model.updateCheckingAvailable {
+                Section("Updates") {
+                    Toggle("Check for updates automatically", isOn: Binding(
+                        get: { model.checksForUpdatesAutomatically },
+                        set: { model.checksForUpdatesAutomatically = $0 }))
+                }
+            }
+
             Section("Keyboard controls") {
                 Picker("DAW control port", selection: Binding(
                     get: { model.controllerAutomatic ? Self.automatic : model.controllerName },

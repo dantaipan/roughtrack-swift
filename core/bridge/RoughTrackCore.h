@@ -428,6 +428,8 @@ public:
     void checkForUpdates (bool manual);
     UpdateInfo takeUpdateOutcome();
     void skipUpdate (const std::string& version);
+    bool checksForUpdatesAutomatically() const;
+    void setChecksForUpdatesAutomatically (bool);
 
     // Undo
     bool canUndo() const;
