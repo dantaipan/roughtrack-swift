@@ -291,6 +291,9 @@ public:
     */
     juce::Result restoreAmp (int track, const juce::File&);
 
+    /** The same for a session's cabinet IR: one that can't load is still remembered. */
+    juce::Result restoreCabinet (int track, const juce::File&);
+
     /** Tries again to load every capture that's remembered but not running, such as after
         the device changes rate. Returns how many loaded.
     */

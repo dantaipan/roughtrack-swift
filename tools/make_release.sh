@@ -19,6 +19,12 @@ identity="Developer ID Application"
 
 cd "$(dirname "$0")/.."
 
+# Without the key, TONE3000 quietly isn't offered, which a release mustn't ship.
+if [ ! -s tone3000_client_id.local ]; then
+    echo "tone3000_client_id.local is missing: put RoughStomp's TONE3000 key in it (see README)." >&2
+    exit 1
+fi
+
 out="dist"
 work="$out/work"
 archive="$work/RoughTrack.xcarchive"

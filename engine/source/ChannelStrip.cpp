@@ -165,6 +165,13 @@ void ChannelStrip::clearCabinet()
 {
     cabinetLoaded = false;
     cabinetFile = juce::File();
+    cabinetSource = {};
+}
+
+void ChannelStrip::setMissingCabinet (const juce::File& file)
+{
+    cabinetLoaded = false;
+    cabinetFile = file;
 }
 
 void ChannelStrip::processAmp (float* left, float* right, int numSamples) noexcept

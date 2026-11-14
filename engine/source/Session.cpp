@@ -66,6 +66,25 @@ std::unique_ptr<juce::XmlElement> createSessionXml (const AudioEngine& engine, c
         channelXml->setAttribute ("amp", channel.getAmpFile().getFullPathName());
         channelXml->setAttribute ("cabinet", channel.getCabinetFile().getFullPathName());
 
+        // Downloaded ones also say where they came from, to show and to fetch again.
+        const auto writeSource = [channelXml] (const char* slot, const FileSource& source)
+        {
+            if (! source.isValid())
+                return;
+
+            auto* sourceXml = channelXml->createNewChildElement ("TONE3000");
+            sourceXml->setAttribute ("slot", slot);
+            sourceXml->setAttribute ("toneId", source.toneId);
+            sourceXml->setAttribute ("modelId", source.modelId);
+            sourceXml->setAttribute ("title", source.title);
+            sourceXml->setAttribute ("model", source.model);
+            sourceXml->setAttribute ("creator", source.creator);
+            sourceXml->setAttribute ("url", source.url);
+        };
+
+        writeSource ("amp", channel.getAmpSource());
+        writeSource ("cabinet", channel.getCabinetSource());
+
         for (const auto& clip : engine.getClips (track))
         {
             auto* clipXml = trackXml->createNewChildElement ("CLIP");
@@ -176,8 +195,26 @@ juce::Result applySessionXml (AudioEngine& engine, const juce::XmlElement& xml, 
                     problems.addIfNotAlreadyThere (ampFile.getFileName() + " (" + loaded.getErrorMessage() + ")");
             }
 
-            if (channelXml->getStringAttribute ("cabinet").isNotEmpty() && channel.loadCabinet (cabinetFile).failed())
+            if (channelXml->getStringAttribute ("cabinet").isNotEmpty() && engine.restoreCabinet (track, cabinetFile).failed())
                 problems.addIfNotAlreadyThere (cabinetFile.getFileName());
+
+            for (auto* sourceXml : channelXml->getChildWithTagNameIterator ("TONE3000"))
+            {
+                FileSource source;
+                source.toneId = sourceXml->getIntAttribute ("toneId");
+                source.modelId = sourceXml->getIntAttribute ("modelId");
+                source.title = sourceXml->getStringAttribute ("title");
+                source.model = sourceXml->getStringAttribute ("model");
+                source.creator = sourceXml->getStringAttribute ("creator");
+                source.url = sourceXml->getStringAttribute ("url");
+
+                const auto slot = sourceXml->getStringAttribute ("slot");
+
+                if (slot == "amp" && channel.getAmpFile() != juce::File())
+                    channel.setAmpSource (source);
+                else if (slot == "cabinet" && channel.getCabinetFile() != juce::File())
+                    channel.setCabinetSource (source);
+            }
         }
 
         ClipList clips;

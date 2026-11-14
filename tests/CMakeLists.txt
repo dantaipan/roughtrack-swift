@@ -23,6 +23,7 @@ add_executable(roughtrack_tests
     PluginScannerTests.cpp
     SessionTests.cpp
     TakeRoundTripTests.cpp
+    Tone3000Tests.cpp
     TunerTests.cpp)
 
 target_link_libraries(roughtrack_tests PRIVATE

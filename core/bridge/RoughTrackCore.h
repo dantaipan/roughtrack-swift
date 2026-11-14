@@ -50,6 +50,15 @@ enum class Snap : int
     off
 };
 
+/** Where a track's capture or IR came from on TONE3000; toneId is 0 for a file from disk. */
+struct Tone3000Source
+{
+    int toneId = 0;
+    std::string title;
+    std::string model;
+    std::string creator;
+};
+
 struct TrackInfo
 {
     int id = 0;
@@ -70,6 +79,12 @@ struct TrackInfo
     /** The built-in amp's capture and cabinet impulse, by file name, or empty. */
     std::string ampName;
     std::string cabinetName;
+
+    /** For ones from TONE3000, and whether one is downloading now. */
+    Tone3000Source ampTone3000;
+    Tone3000Source cabinetTone3000;
+    bool ampLoading = false;
+    bool cabinetLoading = false;
 };
 
 /** A channel or effects setting, described well enough to draw a control for it. */
@@ -226,6 +241,65 @@ struct UpdateInfo
     std::string pageUrl;
     std::string downloadUrl;
     std::string error;
+};
+
+// TONE3000 (tone3000.com)
+
+enum class Tone3000Target { amp, cabinet };
+
+struct Tone3000Account
+{
+    /** False when this build has no TONE3000 key. */
+    bool available = false;
+    bool signedIn = false;
+    bool signingIn = false;
+    bool browsing = false;
+    std::string userName;
+    std::string avatarUrl;
+
+    /** While signing in: the code to enter, and the page to enter it on. */
+    std::string userCode;
+    std::string verificationUrl;
+    std::string error;
+};
+
+struct Tone3000Tone
+{
+    int id = 0;
+    std::string title;
+    std::string creator;
+    std::string gear;
+    std::string format;
+    std::string license;
+    std::string description;
+    std::string url;
+    std::string imageUrl;
+    bool isIr = false;
+};
+
+struct Tone3000Model
+{
+    int id = 0;
+    std::string name;
+    std::string size;
+    std::string architecture;
+};
+
+struct Tone3000List
+{
+    bool loading = false;
+    std::string error;
+    std::vector<Tone3000Tone> tones;
+    int page = 0;
+    bool hasMore = false;
+};
+
+struct Tone3000Detail
+{
+    bool loading = false;
+    std::string error;
+    Tone3000Tone tone;
+    std::vector<Tone3000Model> models;
 };
 
 struct Message
@@ -430,6 +504,26 @@ public:
     void skipUpdate (const std::string& version);
     bool checksForUpdatesAutomatically() const;
     void setChecksForUpdatesAutomatically (bool);
+
+    // TONE3000. Replies arrive in the background and raise revision().
+    Tone3000Account tone3000Account() const;
+    void tone3000SignIn();
+    void tone3000CancelSignIn();
+    void tone3000SignOut();
+
+    /** which: favorited, created, downloaded, trending or latest. Page 1 starts again.
+        For the cabinet, the lists ask TONE3000 for cab gear, since they mix every format. */
+    void tone3000LoadList (const std::string& which, Tone3000Target, int page, bool fresh);
+    Tone3000List tone3000List (const std::string& which, Tone3000Target) const;
+    void tone3000LoadTone (int toneId);
+    Tone3000Detail tone3000Tone (int toneId) const;
+
+    /** TONE3000's own picker in the web browser; the chosen tone, or 0 until there is one. */
+    void tone3000Browse (Tone3000Target);
+    int tone3000TakeBrowsedTone();
+
+    /** Downloads the model and loads it into the track's amp or cab. */
+    void tone3000Use (int track, Tone3000Target, int toneId, int modelId);
 
     // Undo
     bool canUndo() const;

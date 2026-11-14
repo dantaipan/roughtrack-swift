@@ -12,6 +12,11 @@ and settings (user decision 2026-11-12). README.md covers building and releasing
 - Swift sees only `core/bridge/RoughTrackCore.h` (namespace `rt`), which uses plain
   C++ types. Keep JUCE out of it. Swift polls `revision()` instead of taking callbacks.
 - The app links the CMake-built static libraries; the Xcode pre-build script runs CMake.
+- TONE3000 is RoughStomp's `rs::t3k` (fetched at a pinned commit, compiled as
+  `roughtrack_t3k` against our JUCE) under `roughtrack::Tone3000` in the core. Its key is
+  in `tone3000_client_id.local` (git-ignored; never commit it). The sign-in and downloads
+  live in `~/Library/Application Support/TONE3000 Shared`, shared with RoughStomp
+  (user decision 2026-11-13) and named for neither app.
 
 ## Rules of thumb
 

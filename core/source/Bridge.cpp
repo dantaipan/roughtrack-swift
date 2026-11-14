@@ -35,6 +35,53 @@ std::string toStd (const juce::String& text)
     return text.toStdString();
 }
 
+juce::String fromStd (const std::string& text)
+{
+    return juce::String::fromUTF8 (text.c_str());
+}
+
+rt::Tone3000Source tone3000Source (const roughtrack::FileSource& source)
+{
+    rt::Tone3000Source info;
+
+    if (source.isValid())
+    {
+        info.toneId = source.toneId;
+        info.title = toStd (source.title);
+        info.model = toStd (source.model);
+        info.creator = toStd (source.creator);
+    }
+
+    return info;
+}
+
+rt::Tone3000Tone tone3000Tone (const rs::t3k::Tone& tone)
+{
+    rt::Tone3000Tone info;
+    info.id = tone.id;
+    info.title = toStd (tone.title);
+    info.creator = toStd (tone.creator.name());
+    info.gear = toStd (rs::t3k::gearName (tone.gear));
+    info.format = toStd (rs::t3k::formatName (tone.format));
+    info.license = toStd (tone.license);
+    info.description = toStd (tone.description);
+    info.url = toStd (tone.url);
+    info.imageUrl = toStd (tone.image());
+    info.isIr = tone.isIr();
+    return info;
+}
+
+roughtrack::Tone3000Target tone3000Target (rt::Tone3000Target target)
+{
+    return target == rt::Tone3000Target::amp ? roughtrack::Tone3000Target::amp : roughtrack::Tone3000Target::cabinet;
+}
+
+/** The lists mix every format; for a cabinet, TONE3000 can narrow them to cabs. */
+juce::String tone3000Gear (rt::Tone3000Target target)
+{
+    return target == rt::Tone3000Target::cabinet ? "cab" : "";
+}
+
 /** Peaks of every take drawn so far, by file. */
 class WaveformCache
 {
@@ -244,6 +291,15 @@ std::vector<TrackInfo> App::tracks() const
         const auto& channel = engine.getChannel (track);
         info.ampName = channel.getAmpFile() == juce::File() ? std::string() : toStd (channel.getAmpFile().getFileNameWithoutExtension());
         info.cabinetName = channel.getCabinetFile() == juce::File() ? std::string() : toStd (channel.getCabinetFile().getFileNameWithoutExtension());
+        info.ampTone3000 = tone3000Source (channel.getAmpSource());
+        info.cabinetTone3000 = tone3000Source (channel.getCabinetSource());
+
+        if (auto* tone3000 = get().getTone3000())
+        {
+            info.ampLoading = tone3000->isLoading (track, roughtrack::Tone3000Target::amp);
+            info.cabinetLoading = tone3000->isLoading (track, roughtrack::Tone3000Target::cabinet);
+        }
+
         infos.push_back (info);
     }
 
@@ -655,6 +711,105 @@ std::string App::loadCabinet (int track, const std::string& file)
 void App::removeAmp (int track)          { get().removeAmp (track); }
 void App::clearCabinet (int track)       { get().clearCabinet (track); }
 std::string App::ampFolder() const       { return toStd (get().getAmpFolder().getFullPathName()); }
+
+Tone3000Account App::tone3000Account() const
+{
+    Tone3000Account info;
+
+    if (auto* tone3000 = get().getTone3000())
+    {
+        const auto account = tone3000->getAccount();
+        info.available = account.available;
+        info.signedIn = account.signedIn;
+        info.signingIn = account.signingIn;
+        info.browsing = account.browsing;
+        info.userName = toStd (account.userName);
+        info.avatarUrl = toStd (account.avatarUrl);
+        info.userCode = toStd (account.userCode);
+        info.verificationUrl = toStd (account.verificationUrl);
+        info.error = toStd (account.error);
+    }
+
+    return info;
+}
+
+void App::tone3000SignIn()       { if (auto* t = get().getTone3000()) t->signIn(); }
+void App::tone3000CancelSignIn() { if (auto* t = get().getTone3000()) t->cancelSignIn(); }
+void App::tone3000SignOut()      { if (auto* t = get().getTone3000()) t->signOut(); }
+
+void App::tone3000LoadList (const std::string& which, Tone3000Target target, int page, bool fresh)
+{
+    if (auto* t = get().getTone3000())
+        t->loadList (fromStd (which), page, fresh, tone3000Gear (target));
+}
+
+Tone3000List App::tone3000List (const std::string& which, Tone3000Target target) const
+{
+    Tone3000List info;
+
+    if (auto* t = get().getTone3000())
+    {
+        const auto list = t->getList (fromStd (which), tone3000Gear (target));
+        info.loading = list.loading;
+        info.error = toStd (list.error);
+        info.page = list.page;
+        info.hasMore = list.hasMore;
+
+        for (const auto& tone : list.tones)
+            info.tones.push_back (::tone3000Tone (tone));
+    }
+
+    return info;
+}
+
+void App::tone3000LoadTone (int toneId)
+{
+    if (auto* t = get().getTone3000())
+        t->loadTone (toneId);
+}
+
+Tone3000Detail App::tone3000Tone (int toneId) const
+{
+    Tone3000Detail info;
+
+    if (auto* t = get().getTone3000())
+    {
+        const auto detail = t->getTone (toneId);
+        info.loading = detail.loading;
+        info.error = toStd (detail.error);
+        info.tone = ::tone3000Tone (detail.tone);
+
+        for (const auto& model : detail.models)
+        {
+            Tone3000Model m;
+            m.id = model.id;
+            m.name = toStd (model.name);
+            m.size = toStd (model.size);
+            m.architecture = toStd (model.architecture);
+            info.models.push_back (m);
+        }
+    }
+
+    return info;
+}
+
+void App::tone3000Browse (Tone3000Target target)
+{
+    if (auto* t = get().getTone3000())
+        t->browse (tone3000Target (target));
+}
+
+int App::tone3000TakeBrowsedTone()
+{
+    auto* t = get().getTone3000();
+    return t != nullptr ? t->takeBrowsedTone() : 0;
+}
+
+void App::tone3000Use (int track, Tone3000Target target, int toneId, int modelId)
+{
+    if (auto* t = get().getTone3000())
+        t->use (track, tone3000Target (target), toneId, modelId);
+}
 
 std::vector<PluginInfo> App::plugins (bool instruments) const
 {

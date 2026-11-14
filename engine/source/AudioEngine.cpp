@@ -1611,6 +1611,17 @@ juce::Result AudioEngine::restoreAmp (int track, const juce::File& file)
     return result;
 }
 
+juce::Result AudioEngine::restoreCabinet (int track, const juce::File& file)
+{
+    auto& channel = tracks[(size_t) track].channel;
+    const auto result = channel.loadCabinet (file);
+
+    if (result.failed())
+        channel.setMissingCabinet (file);
+
+    return result;
+}
+
 int AudioEngine::retryAmps()
 {
     auto loaded = 0;
@@ -1638,6 +1649,7 @@ void AudioEngine::removeAmp (int track)
     }
 
     channel.setAmpFile ({});
+    channel.setAmpSource ({});
 }
 
 void AudioEngine::resetChannels()

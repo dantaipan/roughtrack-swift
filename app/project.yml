@@ -55,6 +55,7 @@ targets:
           - $(ROUGHTRACK_CMAKE_BUILD)/engine/libroughtrack_engine.a
           - -force_load
           - $(ROUGHTRACK_CMAKE_BUILD)/libroughtrack_nam.a
+          - $(ROUGHTRACK_CMAKE_BUILD)/libroughtrack_t3k.a
           - $(ROUGHTRACK_CMAKE_BUILD)/libroughtrack_juce.a
           - -lc++
 

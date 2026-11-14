@@ -45,6 +45,7 @@ StudioPaths StudioPaths::forApp()
     paths.settingsFile = support.getChildFile (juce::String (appName) + ".settings");
     paths.pluginListFile = support.getChildFile (juce::String (appName) + ".plugins.xml");
     paths.scanExecutable = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+    paths.useTone3000 = true;
     return paths;
 }
 
@@ -56,6 +57,34 @@ Studio::Studio (StudioPaths pathsToUse)
     currentSession = paths.sessionsFolder.getChildFile (settings->getValue ("lastSession", defaultSessionName));
     engine.setSessionDirectory (currentSession);
     engine.setDrumFolder (paths.drumsFolder);
+
+    if (paths.useTone3000)
+    {
+        Tone3000Hooks hooks;
+        hooks.changed = [this] { changed(); };
+        hooks.message = [this] (const juce::String& text, bool isWarning) { postMessage (text, isWarning); };
+        hooks.tracks = [this] { return engine.getTrackOrder(); };
+        hooks.fileOf = [this] (int track, Tone3000Target target)
+        {
+            const auto& channel = engine.getChannel (track);
+            return target == Tone3000Target::amp ? channel.getAmpFile() : channel.getCabinetFile();
+        };
+        hooks.sourceOf = [this] (int track, Tone3000Target target)
+        {
+            const auto& channel = engine.getChannel (track);
+            return target == Tone3000Target::amp ? channel.getAmpSource() : channel.getCabinetSource();
+        };
+        hooks.setSource = [this] (int track, Tone3000Target target, const FileSource& source)
+        {
+            auto& channel = engine.getChannel (track);
+            target == Tone3000Target::amp ? channel.setAmpSource (source) : channel.setCabinetSource (source);
+        };
+        hooks.load = [this] (int track, Tone3000Target target, const juce::File& file, const FileSource& source)
+        {
+            return target == Tone3000Target::amp ? loadAmp (track, file, source) : loadCabinet (track, file, source);
+        };
+        tone3000 = std::make_unique<Tone3000> (std::move (hooks));
+    }
 }
 
 Studio::~Studio()
@@ -865,6 +894,10 @@ void Studio::loadCurrentSession()
     restoreInserts();
     changed();
 
+    // Captures and IRs from TONE3000 that have gone are downloaded again.
+    if (tone3000 != nullptr)
+        tone3000->checkTracks();
+
     // A new session may want another rate, so it gets its own try at switching.
     lastAudioRestoreFrom = {};
 
@@ -1190,13 +1223,18 @@ int Studio::getNumInputChannels() const
     return 0;
 }
 
-juce::Result Studio::loadAmp (int track, const juce::File& capture)
+juce::Result Studio::loadAmp (int track, const juce::File& capture, const FileSource& source)
 {
     const auto result = engine.loadAmp (track, capture);
 
     if (result.wasOk())
     {
-        settings->setValue ("ampFolder", capture.getParentDirectory().getFullPathName());
+        engine.getChannel (track).setAmpSource (source);
+
+        // Downloads have their own folder; the open panel keeps to the player's library.
+        if (! source.isValid())
+            settings->setValue ("ampFolder", capture.getParentDirectory().getFullPathName());
+
         changed();
         saveSession();
     }
@@ -1211,13 +1249,17 @@ void Studio::removeAmp (int track)
     saveSession();
 }
 
-juce::Result Studio::loadCabinet (int track, const juce::File& impulse)
+juce::Result Studio::loadCabinet (int track, const juce::File& impulse, const FileSource& source)
 {
     const auto result = engine.getChannel (track).loadCabinet (impulse);
 
     if (result.wasOk())
     {
-        settings->setValue ("ampFolder", impulse.getParentDirectory().getFullPathName());
+        engine.getChannel (track).setCabinetSource (source);
+
+        if (! source.isValid())
+            settings->setValue ("ampFolder", impulse.getParentDirectory().getFullPathName());
+
         changed();
         saveSession();
     }

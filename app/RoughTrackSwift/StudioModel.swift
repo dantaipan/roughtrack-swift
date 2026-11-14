@@ -24,8 +24,28 @@ final class StudioModel: ObservableObject {
         var inputChannels: Int
         var ampName: String
         var cabinetName: String
+        var ampTone3000: Tone3000Source?
+        var cabinetTone3000: Tone3000Source?
+        var ampLoading: Bool
+        var cabinetLoading: Bool
         var sendReverb: Float
         var sendDelay: Float
+    }
+
+    /// Where a track's capture or IR came from on TONE3000.
+    struct Tone3000Source: Equatable {
+        var toneId: Int
+        var title: String
+        var model: String
+        var creator: String
+
+        init?(_ info: rt.Tone3000Source) {
+            guard info.toneId > 0 else { return nil }
+            toneId = Int(info.toneId)
+            title = String(info.title)
+            model = String(info.model)
+            creator = String(info.creator)
+        }
     }
 
     struct Insert: Equatable, Identifiable {
@@ -224,6 +244,9 @@ final class StudioModel: ObservableObject {
 
     var app: rt.App? { rt.app() }
 
+    /// TONE3000's sign-in, lists and tones, refreshed with everything else.
+    let tone3000 = Tone3000Model()
+
     let channelParameters: [Parameter]
     let auxParameters: [Parameter]
 
@@ -278,6 +301,8 @@ final class StudioModel: ObservableObject {
     }
 
     private func reload(_ app: rt.App) {
+        tone3000.refresh()
+
         var newTracks: [Track] = []
         var newClips: [Int: [Clip]] = [:]
         var newInserts: [Int: [Insert]] = [:]
@@ -289,6 +314,9 @@ final class StudioModel: ObservableObject {
                                    gain: info.gain, pan: info.pan, inverted: info.inverted,
                                    firstInput: Int(info.firstInput), inputChannels: Int(info.inputChannels),
                                    ampName: String(info.ampName), cabinetName: String(info.cabinetName),
+                                   ampTone3000: Tone3000Source(info.ampTone3000),
+                                   cabinetTone3000: Tone3000Source(info.cabinetTone3000),
+                                   ampLoading: info.ampLoading, cabinetLoading: info.cabinetLoading,
                                    sendReverb: app.channelParameter(info.id, Self.sendReverbIndex),
                                    sendDelay: app.channelParameter(info.id, Self.sendDelayIndex)))
             newClips[id] = app.clips(info.id).map { Clip($0) }

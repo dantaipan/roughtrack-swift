@@ -4,6 +4,7 @@ add_library(roughtrack_core STATIC
     source/ControllerInput.cpp
     source/HostedEditor.cpp
     source/Studio.cpp
+    source/Tone3000.cpp
     source/Updates.cpp)
 
 # include/ is for C++ callers; bridge/ is the plain-C++ header Swift imports.
@@ -13,5 +14,6 @@ target_compile_definitions(roughtrack_core PUBLIC ROUGHTRACK_VERSION="${PROJECT_
 target_link_libraries(roughtrack_core
     PUBLIC
         roughtrack_engine
+        roughtrack_t3k
     PRIVATE
         juce::juce_recommended_warning_flags)

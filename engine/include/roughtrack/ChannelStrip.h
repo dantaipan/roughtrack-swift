@@ -41,6 +41,19 @@ struct ParameterInfo
 
 const ParameterInfo& getParameterInfo (ChannelParameter);
 
+/** Where an amp capture or cabinet IR came from when it was downloaded rather
+    than picked from disk: enough to show it and to download it again. The engine
+    only keeps and saves it; the core knows what it means.
+*/
+struct FileSource
+{
+    int toneId = 0, modelId = 0;
+    juce::String title, model, creator, url;
+
+    bool isValid() const noexcept { return toneId > 0 && modelId > 0; }
+    bool operator== (const FileSource&) const = default;
+};
+
 /** The built-in processing on one track. Each plugin insert runs either before
     the amp, like a pedal, or between the amp and the EQ and compressor.
     Nothing here adds latency, so none of it affects delay compensation.
@@ -70,6 +83,16 @@ public:
     void clearCabinet();
     juce::File getCabinetFile() const { return cabinetFile; }
 
+    /** A cabinet that couldn't load, such as a file that has gone: silent, but
+        remembered so saving keeps it and it can load later. */
+    void setMissingCabinet (const juce::File&);
+
+    /** Where the capture and IR came from. Message thread only. */
+    const FileSource& getAmpSource() const noexcept { return ampSource; }
+    void setAmpSource (const FileSource& source) { ampSource = source; }
+    const FileSource& getCabinetSource() const noexcept { return cabinetSource; }
+    void setCabinetSource (const FileSource& source) { cabinetSource = source; }
+
     void processAmp (float* left, float* right, int numSamples) noexcept;
     void processChannel (float* left, float* right, int numSamples) noexcept;
 
@@ -90,6 +113,7 @@ private:
 
     std::unique_ptr<AmpModel> amp;
     juce::File ampFile, cabinetFile;
+    FileSource ampSource, cabinetSource;
 
     std::atomic<bool> cabinetLoaded { false };
     juce::dsp::Convolution cabinet;

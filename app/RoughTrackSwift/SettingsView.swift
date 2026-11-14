@@ -66,6 +66,10 @@ struct SettingsView: View {
                 }
             }
 
+            if model.tone3000.account.available {
+                Tone3000Settings(tone3000: model.tone3000)
+            }
+
             Section("Keyboard controls") {
                 Picker("DAW control port", selection: Binding(
                     get: { model.controllerAutomatic ? Self.automatic : model.controllerName },
@@ -118,5 +122,31 @@ struct SettingsView: View {
         let problem = String(app.chooseAudioDevice(std.string(device), rate, Int32(bufferSize)))
         error = problem.isEmpty ? nil : problem
         load()
+    }
+}
+
+/// Who's signed in to TONE3000. The sign-in is shared with any other app on this Mac
+/// that uses TONE3000 Shared, so signing out here signs them out too.
+private struct Tone3000Settings: View {
+    @ObservedObject var tone3000: Tone3000Model
+
+    var body: some View {
+        Section("TONE3000") {
+            HStack {
+                Text(tone3000.account.signedIn
+                     ? (tone3000.account.userName.isEmpty ? "Signed in" : "Signed in as \(tone3000.account.userName)")
+                     : "Not signed in. Use the TONE3000… button in a track's channel window to sign in.")
+                    .foregroundStyle(Color(Theme.secondaryText))
+                Spacer()
+                if tone3000.account.signedIn {
+                    Button("Sign Out") { tone3000.signOut() }
+                }
+            }
+
+            Text("Signing in or out applies to every app on this Mac that uses TONE3000 Shared.")
+                .font(.callout)
+                .foregroundStyle(Color(Theme.secondaryText))
+        }
+        .onAppear { tone3000.refresh() }
     }
 }

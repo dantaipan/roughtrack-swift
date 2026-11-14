@@ -8,6 +8,7 @@
 #include "roughtrack/Grid.h"
 #include "roughtrack/HostedEditor.h"
 #include "roughtrack/PluginLibrary.h"
+#include "roughtrack/Tone3000.h"
 
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_data_structures/juce_data_structures.h>
@@ -31,6 +32,10 @@ struct StudioPaths
 
     /** Run once for each plugin to scan it in its own process, with scanChildArgument. */
     juce::File scanExecutable;
+
+    /** TONE3000, with the sign-in every app on the Mac shares. Off for tests, which
+        mustn't touch it. */
+    bool useTone3000 = false;
 
     /** The places the app uses: ~/Music/RoughTrack and Application Support, shared with the JUCE RoughTrack. */
     static StudioPaths forApp();
@@ -132,10 +137,14 @@ public:
     /** How many input channels the device has open, for choosing a track's input. */
     int getNumInputChannels() const;
 
-    juce::Result loadAmp (int track, const juce::File& capture);
+    /** A source says where a downloaded file came from; a file picked from disk has none. */
+    juce::Result loadAmp (int track, const juce::File& capture, const FileSource& source = {});
     void removeAmp (int track);
-    juce::Result loadCabinet (int track, const juce::File& impulse);
+    juce::Result loadCabinet (int track, const juce::File& impulse, const FileSource& source = {});
     void clearCabinet (int track);
+
+    /** Null when TONE3000 is off (tests). */
+    Tone3000* getTone3000() noexcept { return tone3000.get(); }
 
     /** Where captures and impulses were last loaded from. */
     juce::File getAmpFolder() const;
@@ -465,6 +474,9 @@ private:
     juce::String lastAudioRestoreFrom, lastRateWarning;
     juce::uint32 revision = 1;
     std::deque<StudioMessage> messages;
+
+    // Last, so it goes first: its replies call back into everything above.
+    std::unique_ptr<Tone3000> tone3000;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE (Studio)
 };

@@ -33,6 +33,25 @@ Each track's Channel button opens its amp capture, cabinet IR, EQ, compressor an
 
 <img src="docs/screenshots/channel.png" alt="A track's channel window with amp, EQ, compressor and sends" width="480">
 
+## TONE3000
+
+**Powered by [TONE3000](https://www.tone3000.com).** The *TONE3000…* button beside a
+track's Capture and Cabinet IR opens TONE3000's library of NAM captures and IRs of real
+gear, made by a community of musicians:
+
+- **Sign in** once: RoughTrack shows a code to confirm at tone3000.com. The sign-in is
+  kept in `~/Library/Application Support/TONE3000 Shared`, a folder named for neither
+  app, which RoughStomp (0.6.1 and later) shares: sign in once for both. Signing out, in
+  the browser or in Settings, signs out both.
+- **Your lists:** Favorites, Created, Downloaded, Trending and Latest, showing only what
+  the slot loads (captures or IRs; for a cabinet, TONE3000 is asked for cabs). Choose a
+  tone to see its models and load one. **Browse TONE3000** opens TONE3000's own picker in your web
+  browser, for searching the whole catalog, and the tone you choose comes back.
+- A file from TONE3000 shows the T3K mark and the tone's name in the channel window.
+  Click it to choose another model from the same tone.
+- Downloads are kept in `TONE3000 Shared/Downloads`, so sessions reopen offline. On
+  another Mac, or if a file has gone, it's downloaded again once you're signed in.
+
 ## Layout
 
 - `engine/`: the audio engine, sessions and plugin hosting (C++, JUCE), as copied
@@ -41,6 +60,8 @@ Each track's Channel button opens its amp capture, cabinet IR, EQ, compressor an
 - `app/`: the SwiftUI app; `app/project.yml` generates the Xcode project
 - `tests/`: Catch2 tests for the engine and the core (`roughtrack_tests`)
 - `tools/`: `roughtrack_bench`, which some tests use, and `make_release.sh`
+- TONE3000 comes from RoughStomp's `tone3000/` library (`rs::t3k`), fetched at a pinned
+  commit in `cmake/Dependencies.cmake` and compiled against this build's JUCE
 
 ## Building
 
@@ -52,6 +73,11 @@ build/release/tests/roughtrack_tests
 
 cd app && xcodegen generate && open RoughTrackSwift.xcodeproj
 ```
+
+TONE3000 needs RoughStomp's publishable key (client ID) in `tone3000_client_id.local`
+at the top of the repo, which git ignores, or `-DROUGHTRACK_T3K_CLIENT_ID=...`. Without
+it, RoughTrack builds and runs but doesn't offer TONE3000, and `make_release.sh` refuses
+to build a release.
 
 The Xcode build runs the CMake build first, so after the first configure you can
 just build in Xcode. The `.xcodeproj` is generated; edit `app/project.yml`, not the project.
@@ -92,4 +118,6 @@ them. Attach the DMG to each release so the checker can offer a direct download.
 
 ## Licence
 
-GNU AGPL 3.0 or later (see LICENSE). JUCE is used under the AGPL.
+GNU AGPL 3.0 or later (see LICENSE). JUCE is used under the AGPL. The TONE3000 and T3K
+logos in `app/RoughTrackSwift/Assets.xcassets` are TONE3000's marks, used unaltered as
+its integration guidelines ask, and aren't covered by this licence.

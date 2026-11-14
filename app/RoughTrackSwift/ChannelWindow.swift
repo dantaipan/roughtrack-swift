@@ -1,3 +1,4 @@
+import RoughTrackCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -10,6 +11,14 @@ struct ChannelWindow: View {
     /// Values being changed here, so knobs don't wait for the model.
     @State private var values: [Int: Float] = [:]
     @State private var message: String?
+    @State private var browsing: Browsing?
+
+    /// The TONE3000 browser, open for the capture or the cabinet.
+    private struct Browsing: Identifiable {
+        var target: rt.Tone3000Target
+        var startingTone: Int?
+        var id: String { "\(target == .amp ? "amp" : "cabinet")-\(startingTone ?? 0)" }
+    }
 
     private enum Section: String, CaseIterable {
         case amp = "Amp", eq = "EQ", compressor = "Compressor", sends = "Sends"
@@ -33,9 +42,11 @@ struct ChannelWindow: View {
                     Spacer()
                 }
 
-                fileRow(title: "Capture", name: info.ampName, types: [UTType(filenameExtension: "nam") ?? .data, .wav],
+                fileRow(title: "Capture", name: info.ampName, source: info.ampTone3000, loading: info.ampLoading,
+                        target: .amp, types: [UTType(filenameExtension: "nam") ?? .data, .wav],
                         load: { model.loadAmp(track, $0) }, clear: { model.removeAmp(track) })
-                fileRow(title: "Cabinet IR", name: info.cabinetName, types: [.wav, .aiff],
+                fileRow(title: "Cabinet IR", name: info.cabinetName, source: info.cabinetTone3000, loading: info.cabinetLoading,
+                        target: .cabinet, types: [.wav, .aiff],
                         load: { model.loadCabinet(track, $0) }, clear: { model.clearCabinet(track) })
 
                 if let message {
@@ -68,6 +79,11 @@ struct ChannelWindow: View {
             .background(Color(Theme.window))
             .navigationTitle("\(info.name) Channel")
             .onChange(of: model.layoutRevision) { values.removeAll() }
+            .sheet(item: $browsing) { browsing in
+                Tone3000Browser(track: track, target: browsing.target, startingTone: browsing.startingTone,
+                                tone3000: model.tone3000)
+                    .environmentObject(model)
+            }
         } else {
             Text("That track has gone.")
                 .padding(40)
@@ -78,18 +94,53 @@ struct ChannelWindow: View {
         values[index] ?? model.channelParameter(track, index)
     }
 
-    private func fileRow(title: String, name: String, types: [UTType],
+    private func fileRow(title: String, name: String, source: StudioModel.Tone3000Source?, loading: Bool,
+                         target: rt.Tone3000Target, types: [UTType],
                          load: @escaping (URL) -> String?, clear: @escaping () -> Void) -> some View {
         HStack(spacing: 8) {
             Text(title)
                 .font(.system(size: 12, weight: .medium))
                 .frame(width: 80, alignment: .leading)
-            Text(name.isEmpty ? "None" : name)
-                .font(.system(size: 12))
-                .foregroundStyle(name.isEmpty ? Color(Theme.secondaryText) : Color(Theme.text))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Group {
+                if loading {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Downloading…").foregroundStyle(Color(Theme.secondaryText))
+                    }
+                } else if let source {
+                    // From TONE3000: its mark and the tone's name; click to switch models.
+                    Button {
+                        browsing = Browsing(target: target, startingTone: source.toneId)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image("t3k-logo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(height: 12)
+                            Text(source.title)
+                                .foregroundStyle(Color(Theme.text))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help([source.model, source.creator.isEmpty ? "" : "by \(source.creator)"]
+                              .filter { !$0.isEmpty }.joined(separator: ", ") + ". Click to choose another model.")
+                } else {
+                    Text(name.isEmpty ? "None" : name)
+                        .foregroundStyle(name.isEmpty ? Color(Theme.secondaryText) : Color(Theme.text))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            .font(.system(size: 12))
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if model.tone3000.account.available {
+                Button("TONE3000…") { browsing = Browsing(target: target, startingTone: nil) }
+                    .help(target == .amp ? "Choose a capture from TONE3000" : "Choose a cabinet IR from TONE3000")
+            }
             Button("Load…") {
                 let panel = NSOpenPanel()
                 panel.allowedContentTypes = types
