@@ -22,10 +22,15 @@ struct TrackHeader: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Image(systemName: icon)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color(Theme.secondaryText))
-                        .frame(width: 14)
+                    Group {
+                        if track.kind == .drums {
+                            SnareDrumIcon()
+                        } else {
+                            Image(systemName: icon).font(.system(size: 11))
+                        }
+                    }
+                    .foregroundStyle(Color(Theme.secondaryText))
+                    .frame(width: 14)
 
                     if isRenaming {
                         TextField("Name", text: $newName)
@@ -102,12 +107,9 @@ struct TrackHeader: View {
         } isTargeted: { isDropTarget = $0 }
     }
 
+    /// Drum tracks draw a snare instead, as SF Symbols has no drum.
     private var icon: String {
-        switch track.kind {
-        case .midi: return "pianokeys"
-        case .drums: return "music.note"
-        default: return "waveform"
-        }
+        track.kind == .midi ? "pianokeys" : "waveform"
     }
 
     private func startRenaming() {
