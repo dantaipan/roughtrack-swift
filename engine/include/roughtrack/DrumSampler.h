@@ -33,6 +33,7 @@ private:
         int startBar = 0;
         int bars = 0;
         int offsetBars = 0;
+        bool halfTime = false;
     };
 
     struct Voice

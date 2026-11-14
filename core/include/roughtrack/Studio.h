@@ -200,6 +200,9 @@ public:
     void splitClip (int track, int clip, juce::int64 position, bool placeFreely);
     void deleteClip (int track, int clip);
     void setClipLooping (int track, int clip, bool shouldLoop);
+
+    /** A drum part's groove at half speed, for a half-time feel. Undoable. */
+    void setPartHalfTime (int track, int part, bool halfTime);
     void quantizeClip (int track, int clip, int gridTicks);
 
     //==============================================================================

@@ -160,6 +160,9 @@ struct ClipInfo
     int loopBars = 0;
     bool isFill = false;
     bool grooveMissing = false;
+
+    /** The groove at half speed: each of its bars fills two of the song's. */
+    bool halfTime = false;
 };
 
 /** A groove in the drum library. */
@@ -358,6 +361,7 @@ public:
     void splitClip (int track, int clip, std::int64_t position, bool placeFreely);
     void deleteClip (int track, int clip);
     void setClipLooping (int track, int clip, bool);
+    void setPartHalfTime (int track, int part, bool);
     void quantizeClip (int track, int clip, int gridTicks);
 
     /** The notes of a MIDI take that fall in a stretch of it, in samples. */
@@ -367,9 +371,9 @@ public:
     std::vector<GrooveInfo> grooves() const;
 
     /** A groove's hits over some bars of a part, starting offsetBars into it, repeating as
-        the part does.
+        the part does, and at half speed for a half-time part.
     */
-    std::vector<DrumHitInfo> grooveHits (const std::string& groove, int offsetBars, int bars) const;
+    std::vector<DrumHitInfo> grooveHits (const std::string& groove, int offsetBars, int bars, bool halfTime) const;
 
     /** Empty if it worked, otherwise why not. The part starts in the bar position falls in. */
     std::string addPart (int track, const std::string& groove, std::int64_t position);

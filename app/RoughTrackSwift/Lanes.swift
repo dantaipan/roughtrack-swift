@@ -419,7 +419,7 @@ final class LanesNSView: NSView {
     /// one path for the part itself and one for its loop's repeats, if it has any.
     private func hitPaths(_ clip: StudioModel.Clip, partSize: CGSize, extentWidth: CGFloat) -> (CGPath, CGPath?) {
         let totalBars = max(clip.bars, clip.loopBars)
-        let key = "hits|\(clip.groove)|\(clip.offsetBars)|\(clip.bars)|\(totalBars)|\(Int(partSize.width))|\(Int(partSize.height))"
+        let key = "hits|\(clip.groove)|\(clip.offsetBars)|\(clip.bars)|\(totalBars)|\(clip.halfTime)|\(Int(partSize.width))|\(Int(partSize.height))"
 
         if let part = paths[key] {
             return (part, totalBars > clip.bars ? paths[key + "|repeats"] : nil)
@@ -432,7 +432,7 @@ final class LanesNSView: NSView {
         let rowHeight = (partSize.height - 3 - top) / 5
         let partBeats = Double(clip.bars * 4)
 
-        for hit in model?.hits(groove: clip.groove, offsetBars: clip.offsetBars, bars: totalBars) ?? [] {
+        for hit in model?.hits(groove: clip.groove, offsetBars: clip.offsetBars, bars: totalBars, halfTime: clip.halfTime) ?? [] {
             let x = CGFloat(hit.beat) * pixelsPerBeat
             guard x >= 0, x < extentWidth else { continue }
             let height = max(2, rowHeight * CGFloat(0.35 + 0.55 * hit.velocity))
@@ -725,6 +725,9 @@ final class LanesNSView: NSView {
             })
             items.append(ActionMenuItem("Loop Until Next Part", checked: clip.looping) { [weak model] in
                 model?.setLooping(id, !clip.looping)
+            })
+            items.append(ActionMenuItem("Half Time", checked: clip.halfTime) { [weak model] in
+                model?.setHalfTime(id, !clip.halfTime)
             })
         }
 

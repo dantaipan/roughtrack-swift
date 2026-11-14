@@ -32,7 +32,7 @@ void DrumSampler::setParts (const DrumPartList& partsToPlay, const GrooveLibrary
 
     for (const auto& part : partsToPlay)
         if (const auto* groove = library.find (part.groove))
-            parts.push_back ({ groove, part.startBar, part.bars, part.offsetBars });
+            parts.push_back ({ groove, part.startBar, part.bars, part.offsetBars, part.halfTime });
 }
 
 void DrumSampler::reset() noexcept
@@ -54,8 +54,9 @@ void DrumSampler::render (float* left, float* right, int numSamples, juce::int64
         return (int) std::floor (((double) sample / samplesPerBeat + grooveEarlyBeats) / beatsPerBar);
     };
 
-    // A hit rounded up onto this block can still belong to the bar before.
-    const auto lastBar = barOf (timelinePosition + numSamples);
+    // A hit rounded up onto this block can still belong to the bar before, and at half
+    // time a push can come before the bar after.
+    const auto lastBar = barOf (timelinePosition + numSamples) + 1;
 
     for (auto bar = barOf (timelinePosition - 1); bar <= lastBar; ++bar)
         triggerBar (bar, numSamples, timelinePosition, samplesPerBeat);
@@ -76,19 +77,15 @@ void DrumSampler::triggerBar (int bar, int numSamples, juce::int64 timelinePosit
     if (part == nullptr)
         return;
 
-    const auto& groove = *part->groove;
-    const auto barInGroove = juce::negativeAwareModulo (bar - part->startBar + part->offsetBars, groove.bars);
-    const auto beatsToGrooveStart = (bar - barInGroove) * beatsPerBar;
-
-    for (auto i = groove.barStarts[(size_t) barInGroove]; i < groove.barStarts[(size_t) barInGroove + 1]; ++i)
+    forEachHitInBar (*part->groove, bar - part->startBar + part->offsetBars, part->halfTime,
+                     [&] (double beatInBar, const DrumHit& hit, int i)
     {
-        const auto& hit = groove.hits[(size_t) i];
-        const auto sample = (juce::int64) std::llround ((hit.beat + beatsToGrooveStart) * samplesPerBeat);
+        const auto sample = (juce::int64) std::llround ((bar * beatsPerBar + beatInBar) * samplesPerBeat);
 
         // Rounding to a whole sample means a hit can't fall between two blocks.
         if (sample >= timelinePosition && sample < timelinePosition + numSamples)
             trigger (hit.piece, hit.velocity, (int) (sample - timelinePosition), (juce::uint32) (bar * barSeedStep + i));
-    }
+    });
 }
 
 void DrumSampler::trigger (DrumPiece piece, float velocity, int sampleOffset, juce::uint32 seed) noexcept

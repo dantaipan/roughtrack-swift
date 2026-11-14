@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 
+#include <cmath>
 #include <vector>
 
 namespace roughtrack
@@ -85,9 +86,47 @@ struct DrumPart
     /** Runs on until the next part on the track starts, or to the end of the song. */
     bool loopsToNext = false;
 
+    /** Plays the groove at half speed, so each of its bars fills two of the song's: the
+        snare on 2 and 4 lands on 3, for a half-time feel. offsetBars still counts the
+        song's bars.
+    */
+    bool halfTime = false;
+
     int endBar() const noexcept { return startBar + bars; }
     bool operator== (const DrumPart&) const = default;
 };
+
+/** Calls back with each of a groove's hits heard in one bar of a part, and the hit's beat
+    counted from that bar's start (a little below zero for a push into it). barInPart
+    counts the song's bars from the groove's start, and wraps when the part loops it. At
+    half time each bar of the groove fills two, and a push comes twice as early.
+*/
+template <typename Callback>
+void forEachHitInBar (const Groove& groove, int barInPart, bool halfTime, Callback&& callback)
+{
+    if (groove.bars <= 0 || (int) groove.barStarts.size() <= groove.bars)
+        return;
+
+    const auto songBar = juce::negativeAwareModulo (barInPart, groove.bars * (halfTime ? 2 : 1));
+    const auto barInGroove = halfTime ? songBar / 2 : songBar;
+
+    for (auto i = groove.barStarts[(size_t) barInGroove]; i < groove.barStarts[(size_t) barInGroove + 1]; ++i)
+    {
+        const auto& hit = groove.hits[(size_t) i];
+
+        if (! halfTime)
+        {
+            callback (hit.beat - barInGroove * beatsPerBar, hit, i);
+            continue;
+        }
+
+        // Which of the two bars this hit falls in, a push counting with the bar it leads into.
+        const auto half = (int) std::floor ((hit.beat + grooveEarlyBeats) / 2.0) - barInGroove * 2;
+
+        if (half == songBar % 2)
+            callback (hit.beat * 2.0 - songBar * beatsPerBar, hit, i);
+    }
+}
 
 /** Later parts play over earlier ones, so a fill replaces the bars it covers. */
 using DrumPartList = std::vector<DrumPart>;

@@ -112,6 +112,7 @@ final class StudioModel: ObservableObject {
         var loopBars: Int
         var isFill: Bool
         var grooveMissing: Bool
+        var halfTime: Bool
 
         var end: Int64 { start + length }
 
@@ -133,6 +134,7 @@ final class StudioModel: ObservableObject {
             loopBars = Int(info.loopBars)
             isFill = info.isFill
             grooveMissing = info.grooveMissing
+            halfTime = info.halfTime
         }
     }
 
@@ -625,6 +627,13 @@ final class StudioModel: ObservableObject {
         pollNow()
     }
 
+    /// A drum part's groove at half speed, for a half-time feel.
+    func setHalfTime(_ clip: ClipID, _ value: Bool) {
+        guard canEdit() else { return }
+        app?.setPartHalfTime(Int32(clip.track), Int32(clip.index), value)
+        pollNow()
+    }
+
     func quantize(_ clip: ClipID, gridTicks: Int32) {
         guard canEdit() else { return }
         app?.quantizeClip(Int32(clip.track), Int32(clip.index), gridTicks)
@@ -710,8 +719,8 @@ final class StudioModel: ObservableObject {
         addPart(groove.id, onto: drumTrack, at: app?.position() ?? 0)
     }
 
-    func hits(groove: String, offsetBars: Int, bars: Int) -> [rt.DrumHitInfo] {
-        app.map { Array($0.grooveHits(std.string(groove), Int32(offsetBars), Int32(bars))) } ?? []
+    func hits(groove: String, offsetBars: Int, bars: Int, halfTime: Bool) -> [rt.DrumHitInfo] {
+        app.map { Array($0.grooveHits(std.string(groove), Int32(offsetBars), Int32(bars), halfTime)) } ?? []
     }
 
     func takes(for track: Int) -> [String] {

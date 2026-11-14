@@ -1528,6 +1528,16 @@ void Studio::setClipLooping (int track, int clip, bool shouldLoop)
     applyClipEdit (track, clips, shouldLoop ? "Loop Until Next Part" : "Stop Looping");
 }
 
+void Studio::setPartHalfTime (int track, int part, bool halfTime)
+{
+    if (! isDrums (track) || ! canEdit() || ! juce::isPositiveAndBelow (part, (int) engine.getDrumParts (track).size()))
+        return;
+
+    auto parts = engine.getDrumParts (track);
+    parts[(size_t) part].halfTime = halfTime;
+    applyDrumEdit (track, parts, halfTime ? "Half Time" : "Normal Time");
+}
+
 void Studio::quantizeClip (int track, int clip, int gridTicks)
 {
     if (! canEdit() || engine.getTrackType (track) != TrackType::midi)

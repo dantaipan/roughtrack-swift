@@ -114,6 +114,9 @@ std::unique_ptr<juce::XmlElement> createSessionXml (const AudioEngine& engine, c
 
             if (part.loopsToNext)
                 partXml->setAttribute ("loop", true);
+
+            if (part.halfTime)
+                partXml->setAttribute ("halfTime", true);
         }
     }
 
@@ -259,6 +262,7 @@ juce::Result applySessionXml (AudioEngine& engine, const juce::XmlElement& xml, 
                 part.bars = partXml->getIntAttribute ("bars");
                 part.offsetBars = partXml->getIntAttribute ("offsetBars");
                 part.loopsToNext = partXml->getBoolAttribute ("loop");
+                part.halfTime = partXml->getBoolAttribute ("halfTime");
 
                 if (engine.getGrooves().find (part.groove) == nullptr)
                     problems.addIfNotAlreadyThere ("groove " + part.groove);

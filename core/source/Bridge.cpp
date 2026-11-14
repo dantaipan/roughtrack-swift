@@ -192,8 +192,10 @@ std::vector<rt::ClipInfo> describeParts (int track, const roughtrack::DrumPartLi
         info.loopBars = loopEnd - part.startBar;
         info.grooveMissing = groove == nullptr;
         info.isFill = groove != nullptr && groove->isFill;
+        info.halfTime = part.halfTime;
         info.name = groove == nullptr ? std::string ("Missing groove")
-                                      : toStd (groove->style + " " + (groove->isFill ? "fill " : "") + groove->name);
+                                      : toStd (groove->style + " " + (groove->isFill ? "fill " : "") + groove->name
+                                               + (part.halfTime ? ", half time" : ""));
         infos.push_back (info);
         ++index;
     }
@@ -357,6 +359,7 @@ void App::commitDrag (int track, int clip, DragZone zone, std::int64_t distance,
 void App::splitClip (int track, int clip, std::int64_t position, bool placeFreely) { get().splitClip (track, clip, position, placeFreely); }
 void App::deleteClip (int track, int clip)                                         { get().deleteClip (track, clip); }
 void App::setClipLooping (int track, int clip, bool value)                         { get().setClipLooping (track, clip, value); }
+void App::setPartHalfTime (int track, int part, bool value)                        { get().setPartHalfTime (track, part, value); }
 void App::quantizeClip (int track, int clip, int gridTicks)                        { get().quantizeClip (track, clip, gridTicks); }
 
 std::vector<NoteInfo> App::midiNotes (int track, const std::string& file, std::int64_t offset, std::int64_t length) const
@@ -411,25 +414,20 @@ std::vector<GrooveInfo> App::grooves() const
     return infos;
 }
 
-std::vector<DrumHitInfo> App::grooveHits (const std::string& id, int offsetBars, int bars) const
+std::vector<DrumHitInfo> App::grooveHits (const std::string& id, int offsetBars, int bars, bool halfTime) const
 {
     std::vector<DrumHitInfo> hits;
     const auto* groove = get().getEngine().getGrooves().find (juce::String::fromUTF8 (id.c_str()));
 
-    if (groove == nullptr || groove->bars <= 0 || (int) groove->barStarts.size() <= groove->bars)
+    if (groove == nullptr)
         return hits;
 
+    // The same hits the drums play, so what's drawn is what's heard.
     for (int bar = 0; bar < bars; ++bar)
-    {
-        const auto barInGroove = juce::negativeAwareModulo (bar + offsetBars, groove->bars);
-
-        for (auto i = groove->barStarts[(size_t) barInGroove]; i < groove->barStarts[(size_t) barInGroove + 1]; ++i)
+        roughtrack::forEachHitInBar (*groove, bar + offsetBars, halfTime, [&] (double beatInBar, const roughtrack::DrumHit& hit, int)
         {
-            const auto& hit = groove->hits[(size_t) i];
-            hits.push_back ({ bar * roughtrack::beatsPerBar + hit.beat - barInGroove * roughtrack::beatsPerBar,
-                              drawingRow (hit.piece), hit.velocity });
-        }
-    }
+            hits.push_back ({ bar * roughtrack::beatsPerBar + beatInBar, drawingRow (hit.piece), hit.velocity });
+        });
 
     return hits;
 }

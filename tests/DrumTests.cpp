@@ -577,3 +577,93 @@ TEST_CASE ("A looping drum part plays on to the next part")
     // Without the loop, bars 2 and 3 would be silent.
     CHECK (onsets == std::vector<int> { 0, 24000, 144000, 2 * samplesPerBar, 2 * samplesPerBar + 24000, 2 * samplesPerBar + 144000 });
 }
+
+TEST_CASE ("At half time a groove plays at half speed, its backbeat on 3")
+{
+    Drums drums;
+    DrumPart part { "beat", 0, 4, 0 };
+    part.halfTime = true;
+    drums.sampler.setParts ({ part }, drums.library);
+
+    // The test beat's kick on 1, snare on 2 and, in its second bar, kick on 3 land on
+    // 1 and 3 of the first bar and 1 of the fourth: each of its bars fills two.
+    CHECK (findOnsets (drums.render (4 * samplesPerBar)) == std::vector<int> { 0, 48000, 3 * samplesPerBar });
+}
+
+TEST_CASE ("A half-time part loops after twice its groove's bars")
+{
+    Drums drums;
+    DrumPart part { "beat", 0, 8, 0 };
+    part.halfTime = true;
+    drums.sampler.setParts ({ part }, drums.library);
+
+    CHECK (findOnsets (drums.render (8 * samplesPerBar))
+           == std::vector<int> { 0, 48000, 3 * samplesPerBar, 4 * samplesPerBar, 4 * samplesPerBar + 48000, 7 * samplesPerBar });
+}
+
+TEST_CASE ("A trimmed half-time part starts partway through its groove")
+{
+    Drums drums;
+    DrumPart part { "beat", 3, 1, 3 };
+    part.halfTime = true;
+    drums.sampler.setParts ({ part }, drums.library);
+
+    // Three bars in at half time is the second half of the groove's second bar.
+    CHECK (findOnsets (drums.render (4 * samplesPerBar)) == std::vector<int> { 3 * samplesPerBar });
+}
+
+TEST_CASE ("At half time a push comes twice as early, at every buffer size")
+{
+    for (const auto blockLength : { 16, 64, 333, 1024 })
+    {
+        Drums drums;
+        DrumPart part { "push", 1, 1, 0 };
+        part.halfTime = true;
+        drums.sampler.setParts ({ part }, drums.library);
+
+        CHECK (findOnsets (drums.render (2 * samplesPerBar, blockLength)) == std::vector<int> { samplesPerBar - 4800 });
+    }
+}
+
+TEST_CASE ("The hits drawn for a bar are the ones played, at either speed")
+{
+    Drums drums;
+    const auto* groove = drums.library.find ("beat");
+    REQUIRE (groove != nullptr);
+
+    const auto beatsIn = [groove] (int barInPart, bool halfTime)
+    {
+        std::vector<double> beats;
+        forEachHitInBar (*groove, barInPart, halfTime, [&beats] (double beat, const DrumHit&, int) { beats.push_back (beat); });
+        return beats;
+    };
+
+    CHECK (beatsIn (0, false) == std::vector<double> { 0.0, 1.0 });
+    CHECK (beatsIn (1, false) == std::vector<double> { 2.0 });
+    CHECK (beatsIn (0, true) == std::vector<double> { 0.0, 2.0 });
+    CHECK (beatsIn (1, true).empty());
+    CHECK (beatsIn (2, true).empty());
+    CHECK (beatsIn (3, true) == std::vector<double> { 0.0 });
+    CHECK (beatsIn (4, true) == std::vector<double> { 0.0, 2.0 });   // it loops after four bars
+}
+
+TEST_CASE ("A part's half time is saved with the session")
+{
+    EngineRig saved;
+    DrumPart part { "beat", 2, 4, 0 };
+    part.halfTime = true;
+    REQUIRE (saved.engine.setDrumParts (saved.track, { part, { "fill", 6, 1, 0 } }).wasOk());
+
+    const auto xml = createSessionXml (saved.engine, saved.temp.directory);
+
+    AudioEngine reopened;
+    reopened.setDrumFolder (saved.temp.directory.getChildFile ("Drums"));
+    reopened.prepare (sampleRate, blockSize);
+    REQUIRE (reopened.loadDrums().wasOk());
+    REQUIRE (applySessionXml (reopened, *xml, saved.temp.directory).wasOk());
+
+    const auto& parts = reopened.getDrumParts (saved.track);
+    REQUIRE (parts.size() == 2);
+    CHECK (parts[0].halfTime);
+    CHECK (! parts[1].halfTime);
+}
