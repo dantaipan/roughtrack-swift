@@ -108,3 +108,23 @@ TEST_CASE ("Release notes read cleanly in the app")
     REQUIRE (bold != runs.end());
     CHECK (bold->text == "Preview grooves.");
 }
+
+TEST_CASE ("Automatic checks are once a day for each version")
+{
+    constexpr juce::int64 hour = 60 * 60 * 1000;
+    const juce::int64 now = 1'800'000'000'000;
+
+    // Never checked, or settings from before this rule
+    CHECK (isAutomaticCheckDue ({}, "0.1.8", now));
+    CHECK (isAutomaticCheckDue ("1794599208846", "0.1.8", now));
+
+    // This version checked an hour ago: not again until a day has passed
+    CHECK (! isAutomaticCheckDue (lastCheckRecord ("0.1.8", now - hour), "0.1.8", now));
+    CHECK (isAutomaticCheckDue (lastCheckRecord ("0.1.8", now - 24 * hour), "0.1.8", now));
+
+    // Another version's check, such as a newer test build's, doesn't hold this one back
+    CHECK (isAutomaticCheckDue (lastCheckRecord ("0.1.9", now - hour), "0.1.8", now));
+
+    // A clock set back isn't a reason to wait
+    CHECK (isAutomaticCheckDue (lastCheckRecord ("0.1.8", now + hour), "0.1.8", now));
+}

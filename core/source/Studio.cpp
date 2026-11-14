@@ -2097,17 +2097,17 @@ void Studio::tick()
             restoreChosenAudioDevice();
     }
 
-    // Once a day at most, a while after starting, and only with a device open (not in tests).
+    // Once a day for each version, a while after starting, and only with a device open
+    // (not in tests).
     if (audioStarted && ! automaticUpdateCheckDone)
     {
         automaticUpdateCheckDone = true;
-        constexpr juce::int64 dayMs = 24 * 60 * 60 * 1000;
-        const auto lastCheck = settings->getValue ("lastUpdateCheck").getLargeIntValue();
+        const auto now = juce::Time::currentTimeMillis();
 
         if (checksForUpdatesAutomatically() && updates::isUpdateCheckingAvailable()
-            && juce::Time::currentTimeMillis() - lastCheck >= dayMs)
+            && updates::isAutomaticCheckDue (settings->getValue (updates::lastCheckKey), ROUGHTRACK_VERSION, now))
         {
-            settings->setValue ("lastUpdateCheck", juce::String (juce::Time::currentTimeMillis()));
+            settings->setValue (updates::lastCheckKey, updates::lastCheckRecord (ROUGHTRACK_VERSION, now));
             checkForUpdates (false);
         }
     }

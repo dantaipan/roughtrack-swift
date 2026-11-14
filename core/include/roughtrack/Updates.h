@@ -37,6 +37,19 @@ std::optional<Release> parseLatestRelease (const juce::var& json);
 */
 bool shouldOffer (const Release&, const juce::String& currentVersion, const juce::String& skippedVersion, bool isManual);
 
+/** The settings key for the last automatic check. It's RoughTrack Swift's own, apart from
+    the JUCE RoughTrack's "lastUpdateCheck" in the settings they share. */
+inline constexpr auto lastCheckKey = "lastUpdateCheckByVersion";
+
+/** What lastCheckKey holds after a check: the version that checked, and when. */
+juce::String lastCheckRecord (const juce::String& version, juce::int64 nowMs);
+
+/** Whether an automatic check is due: once a day for each version. A check by any other
+    version, such as a newer test build or another copy of RoughTrack sharing the
+    settings, doesn't count, so it never keeps an older install from hearing of a release.
+*/
+bool isAutomaticCheckDue (const juce::String& lastCheck, const juce::String& currentVersion, juce::int64 nowMs);
+
 /** A stretch of release notes in one style, ready to show. */
 struct NoteRun
 {

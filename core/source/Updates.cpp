@@ -112,6 +112,22 @@ std::optional<Release> parseLatestRelease (const juce::var& json)
     return release;
 }
 
+juce::String lastCheckRecord (const juce::String& version, juce::int64 nowMs)
+{
+    return version + " " + juce::String (nowMs);
+}
+
+bool isAutomaticCheckDue (const juce::String& lastCheck, const juce::String& currentVersion, juce::int64 nowMs)
+{
+    constexpr juce::int64 dayMs = 24 * 60 * 60 * 1000;
+
+    const auto version = lastCheck.upToFirstOccurrenceOf (" ", false, false);
+    const auto checkedAt = lastCheck.fromFirstOccurrenceOf (" ", false, false).getLargeIntValue();
+
+    // A clock set back makes a check "in the future": that isn't a reason to wait.
+    return version != currentVersion || nowMs - checkedAt >= dayMs || nowMs < checkedAt;
+}
+
 bool shouldOffer (const Release& release, const juce::String& currentVersion, const juce::String& skippedVersion, bool isManual)
 {
     if (! isNewerVersion (release.version, currentVersion))
