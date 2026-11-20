@@ -6,6 +6,7 @@ struct ContentView: View {
     @EnvironmentObject private var model: StudioModel
     @State private var geometry = TimelineGeometry()
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -83,8 +84,8 @@ struct ContentView: View {
                 .background(Color(Theme.window))
                 .frame(minHeight: 120)
 
-                if model.showingMixer {
-                    MixerView()
+                if model.showingMixer && !model.mixerUndocked {
+                    MixerView(undocked: false)
                         .frame(minHeight: 420)
                 }
             }
@@ -152,6 +153,16 @@ struct ContentView: View {
             geometry.tempo = model.tempo
             geometry.timingChanged()
         }
+        // The undocked mixer's window follows the model, including at launch, when macOS
+        // may have restored it whatever the saved setting says.
+        .onAppear { showMixerWindow(mixerWindowWanted) }
+        .onChange(of: mixerWindowWanted) { showMixerWindow(mixerWindowWanted) }
+    }
+
+    private var mixerWindowWanted: Bool { model.showingMixer && model.mixerUndocked }
+
+    private func showMixerWindow(_ show: Bool) {
+        if show { openWindow(id: "mixer") } else { dismissWindow(id: "mixer") }
     }
 }
 

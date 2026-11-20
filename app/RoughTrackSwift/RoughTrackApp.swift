@@ -18,10 +18,18 @@ struct RoughTrackApp: App {
                 .frame(minWidth: 900, minHeight: 420)
                 .preferredColorScheme(.dark)
         }
-        .defaultSize(width: 1300, height: 760)
+        .defaultSize(width: 1300, height: 900)
         .commands {
             StudioCommands(model: model)
         }
+
+        // The mixer, when it's undocked from the main window.
+        Window("Mixer", id: "mixer") {
+            MixerWindow()
+                .environmentObject(model)
+                .preferredColorScheme(.dark)
+        }
+        .defaultSize(width: 1300, height: 460)
 
         // A track's channel settings, one window per track.
         WindowGroup("Channel", id: "channel", for: Int.self) { $track in
@@ -50,6 +58,11 @@ struct RoughTrackApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        StudioModel.quitting = true
+        return .terminateNow
+    }
 
     func applicationWillTerminate(_ notification: Notification) {
         rt.stopStudio()
@@ -118,6 +131,8 @@ struct StudioCommands: Commands {
             Button(model.showingMixer ? "Hide Mixer" : "Show Mixer") { model.showingMixer.toggle() }
                 .keyboardShortcut("x", modifiers: [])
                 .disabled(model.keysAreBusy)
+            Button(model.mixerUndocked ? "Dock Mixer" : "Undock Mixer") { model.toggleMixerDocking() }
+                .keyboardShortcut("x", modifiers: [.command, .option])
             Button(model.showingGrooves ? "Hide Grooves" : "Show Grooves") { model.showingGrooves.toggle() }
                 .keyboardShortcut("g", modifiers: [])
                 .disabled(model.keysAreBusy)

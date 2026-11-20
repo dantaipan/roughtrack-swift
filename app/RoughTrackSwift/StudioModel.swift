@@ -194,7 +194,14 @@ final class StudioModel: ObservableObject {
     @Published private(set) var clickEnabled = false
     @Published private(set) var inputChannelCount = 0
     @Published private(set) var scanningPlugins = false
-    @Published var showingMixer = false
+    /// Whether the mixer shows, docked under the tracks or in its own window. Both are
+    /// remembered between launches; the mixer starts docked and showing.
+    @Published var showingMixer = StudioModel.savedFlag("showMixer", default: true) {
+        didSet { StudioModel.saveFlag("showMixer", showingMixer) }
+    }
+    @Published var mixerUndocked = StudioModel.savedFlag("mixerUndocked", default: false) {
+        didSet { StudioModel.saveFlag("mixerUndocked", mixerUndocked) }
+    }
     @Published var showingGrooves = false {
         didSet { if !showingGrooves { stopGroovePreview() } }
     }
@@ -521,6 +528,24 @@ final class StudioModel: ObservableObject {
     }
 
     // MARK: - Mixer
+
+    /// Set as RoughTrack quits, when its windows close without anyone closing them.
+    static var quitting = false
+
+    /// Undocking a hidden mixer shows it, in its own window.
+    func toggleMixerDocking() {
+        mixerUndocked.toggle()
+        showingMixer = true
+    }
+
+    private nonisolated static func savedFlag(_ key: String, default value: Bool) -> Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? value
+    }
+
+    /// Snapshots arrange the window for the picture, so they leave the user's setting alone.
+    private nonisolated static func saveFlag(_ key: String, _ value: Bool) {
+        if SnapshotRequest.current == nil { UserDefaults.standard.set(value, forKey: key) }
+    }
 
     func setGain(_ track: Int, _ gain: Float) { app?.setGain(Int32(track), gain) }
     func setPan(_ track: Int, _ pan: Float) { app?.setPan(Int32(track), pan) }

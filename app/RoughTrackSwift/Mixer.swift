@@ -1,10 +1,12 @@
 import RoughTrackCore
 import SwiftUI
 
-/// The mixer, docked under the tracks: a strip per track, the reverb and delay returns,
-/// and the master. Each strip takes plain values rather than watching the model, so
-/// moving one fader redraws only that strip.
+/// The mixer, docked under the tracks or in its own window: a strip per track, the reverb
+/// and delay returns, and the master. Each strip takes plain values rather than watching
+/// the model, so moving one fader redraws only that strip.
 struct MixerView: View {
+    /// In its own window, rather than under the tracks.
+    let undocked: Bool
     @EnvironmentObject private var model: StudioModel
 
     var body: some View {
@@ -24,6 +26,7 @@ struct MixerView: View {
                 ReturnStrip(name: "Delay", returnIndex: StudioModel.delayReturnIndex, editIndexes: [3, 4, 5, 6], model: model,
                             level: aux(StudioModel.delayReturnIndex))
                 MasterStrip(gain: model.masterGain, model: model)
+                DockColumn(undocked: undocked, model: model)
             }
             .padding(.horizontal, 1)
             .frame(maxHeight: .infinity)
@@ -33,6 +36,45 @@ struct MixerView: View {
 
     private func aux(_ index: Int) -> Float {
         index < model.auxValues.count ? model.auxValues[index] : 0
+    }
+}
+
+/// The undocked mixer's window. Closing it hides the mixer, as X does, and the mixer
+/// opens here again next time.
+struct MixerWindow: View {
+    @EnvironmentObject private var model: StudioModel
+
+    var body: some View {
+        MixerView(undocked: true)
+            .frame(minWidth: 500, minHeight: 420)
+            .navigationTitle("Mixer")
+            .onDisappear {
+                if model.mixerUndocked && !StudioModel.quitting { model.showingMixer = false }
+            }
+    }
+}
+
+/// Beside the master: moves the mixer between the main window and its own.
+private struct DockColumn: View {
+    let undocked: Bool
+    let model: StudioModel
+
+    var body: some View {
+        VStack {
+            Button { model.toggleMixerDocking() } label: {
+                Image(systemName: undocked ? "rectangle.bottomhalf.inset.filled" : "macwindow.badge.plus")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(Theme.secondaryText))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.borderless)
+            .help(undocked ? "Put the Mixer Back in the Main Window (⌥⌘X)" : "Open the Mixer in Its Own Window (⌥⌘X)")
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6)
+        .frame(width: 24)
+        .frame(maxHeight: .infinity)
+        .background(Color(Theme.header))
     }
 }
 

@@ -97,6 +97,7 @@ enum Snapshot {
 
         model.update = nil
         model.selectedClip = nil
+        model.mixerUndocked = false
         model.showingMixer = request.mixer
         model.showingTuner = request.tuner
         model.showingGrooves = request.grooves
